@@ -51,6 +51,7 @@ class DistanceReader:
         dist_msg = Float64()
         dist_msg.data = self.total_distance
         self.distance_publisher.publish(dist_msg)
+        rospy.loginfo("Total Distance Travelled: %.2f", self.total_distance)
         ###########################################
 
 if __name__ == '__main__': 
