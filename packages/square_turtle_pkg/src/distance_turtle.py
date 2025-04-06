@@ -19,16 +19,17 @@ class DistanceReader:
         # Initialize publisher: input the topic name, message type and msg queue size
         self.distance_publisher = rospy.Publisher('/turtle_dist', Float64, queue_size=10)
 
+        #get coordinates
+        self.last_x = None
+        self.last_y = None
+        self.total_distance = 0.0
+
         # Printing to the terminal, ROS style
         rospy.loginfo("Initalized node!")
         
         # This blocking function call keeps python from exiting until node is stopped
         rospy.spin()
 
-        #get coordinates
-        self.last_x = None
-        self.last_y = None
-        self.total_distance = 0.0
 
 
     # Whenever a message is received from the specified subscriber, this function will be called
