@@ -11,7 +11,6 @@ import time
 class TurtlesimStraightsAndTurns:
     def __init__(self):
         # Initialize class variables
-        self.last_distance = 0
         self.goal_distance = 0
         self.dist_goal_active = False
         self.forward_movement = True
@@ -23,6 +22,7 @@ class TurtlesimStraightsAndTurns:
         self.rotate_ccw = True
 
         self.pose = Pose()
+        self.initial_position = Point()
 
         self.position_goal = Point()
         self.position_goal_active = False
@@ -32,7 +32,6 @@ class TurtlesimStraightsAndTurns:
         rospy.init_node('turtlesim_straights_and_turns_node', anonymous=True)
 
         # Initialize subscribers  
-        rospy.Subscriber("/turtle_dist", Float64, self.distance_callback)
         rospy.Subscriber("/goal_angle", Float64, self.goal_angle_callback)
         rospy.Subscriber("/goal_distance", Float64, self.goal_distance_callback)
         rospy.Subscriber("/goal_position", Point, self.goal_position_callback)
@@ -52,9 +51,6 @@ class TurtlesimStraightsAndTurns:
         self.current_theta = msg.theta
         self.pose = msg
 
-    def distance_callback(self, msg):
-        self.last_distance = msg.data
-
     def goal_angle_callback(self, msg):
         self.goal_angle = msg.data
         self.angle_goal_active = True
@@ -62,9 +58,11 @@ class TurtlesimStraightsAndTurns:
         self.rotate_ccw = True if msg.data >= 0 else False
 
     def goal_distance_callback(self, msg):
-        self.goal_distance = msg.data
+        self.goal_distance = abs(msg.data)
         self.dist_goal_active = True
         self.forward_movement = True if msg.data >= 0 else False
+        self.initial_position.x = self.pose.x
+        self.initial_position.y = self.pose.y
 
     def goal_position_callback(self, msg):
         self.position_goal = msg
@@ -91,7 +89,11 @@ class TurtlesimStraightsAndTurns:
                 self.velocity_publisher.publish(cmd)
 
         elif self.dist_goal_active:
-            distance_remaining = abs(self.goal_distance) - abs(self.last_distance)
+            dx = self.pose.x - self.initial_position.x
+            dy = self.pose.y - self.initial_position.y
+            distance_travelled = (dx**2 + dy**2)**0.5
+            distance_remaining = self.goal_distance - distance_travelled
+
             if distance_remaining <= 0.05:
                 self.velocity_publisher.publish(Twist())
                 self.dist_goal_active = False
