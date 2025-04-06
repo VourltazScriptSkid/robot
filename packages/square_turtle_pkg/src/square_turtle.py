@@ -13,7 +13,7 @@ def move_turtle_square():
     rospy.loginfo("Turtles are great at drawing squares!")
 
     ########## YOUR CODE GOES HERE ##########
-        while not rospy.is_shutdown():
+    while not rospy.is_shutdown():
         rate = rospy.Rate(1)  # 1 Hz, adjust as needed
 
         # Move forward
