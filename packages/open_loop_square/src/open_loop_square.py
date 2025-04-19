@@ -3,6 +3,7 @@
 import rospy
 from duckietown_msgs.msg import Twist2DStamped
 from duckietown_msgs.msg import FSMState
+import math
  
 class Drive_Square:
     def __init__(self):
@@ -40,20 +41,32 @@ class Drive_Square:
     def move_robot(self):
 
         #YOUR CODE GOES HERE#
-        self.cmd_msg.header.stamp = rospy.Time.now()
-        self.cmd_msg.v = 0.5 # striaght line velocity
-        self.cmd_msg.omega = 0.0
-        self.pub.publish(self.cmd_msg)
-        rospy.loginfo("Forward!")
-        rospy.sleep(1) # straight line driving time
-        
-        self.cmd_msg.header.stamp = rospy.Time.now()
-        self.cmd_msg.v = -0.5 # striaght line velocity
-        self.cmd_msg.omega = 0.0
-        self.pub.publish(self.cmd_msg)
-        rospy.loginfo("Backward!")
-        rospy.sleep(1) # straight line driving time
-        
+        rate = rospy.Rate(10)  # 10 Hz control rate
+        linear_speed = 0.2      # meters per second
+        turn_speed = 1.0        # radians per second
+
+        forward_duration = 5.0  # time to travel 1 meter
+        turn_duration = math.pi / 2 / turn_speed  # time to turn 90 degrees
+
+        for i in range(4):
+            rospy.loginfo(f"Side {i+1}: Moving forward")
+            start_time = rospy.Time.now()
+            while (rospy.Time.now() - start_time).to_sec() < forward_duration:
+                self.cmd_msg.header.stamp = rospy.Time.now()
+                self.cmd_msg.v = linear_speed
+                self.cmd_msg.omega = 0.0
+                self.pub.publish(self.cmd_msg)
+                rate.sleep()
+
+            rospy.loginfo(f"Side {i+1}: Turning 90 degrees")
+            start_time = rospy.Time.now()
+            while (rospy.Time.now() - start_time).to_sec() < turn_duration:
+                self.cmd_msg.header.stamp = rospy.Time.now()
+                self.cmd_msg.v = 0.0
+                self.cmd_msg.omega = turn_speed
+                self.pub.publish(self.cmd_msg)
+                rate.sleep()
+
         ######################
                 
         self.stop_robot()
