@@ -45,7 +45,7 @@ class Drive_Square:
         linear_speed = 0.2      # meters per second
         turn_speed = 1.0        # radians per second
 
-        forward_duration = 5.0  # time to travel 1 meter
+        forward_duration = 2.5  # time to travel 1 meter
         turn_duration = math.pi / 2 / turn_speed  # time to turn 90 degrees
 
         for i in range(4):
