@@ -3,6 +3,7 @@
 import rospy
 from duckietown_msgs.msg import Twist2DStamped
 from duckietown_msgs.msg import FSMState
+from duckietown_msgs.msg import WheelEncoderStamped
 import math
  
 class Drive_Square:
@@ -120,7 +121,7 @@ class Drive_Square:
         self.stop_robot()
 
     def left_encoder_callback(self, msg):
-        self.left_ticks = msg.data  # adjust if it's not .data
+        self.left_ticks = msg.data  
 
     def right_encoder_callback(self, msg):
         self.right_ticks = msg.data
