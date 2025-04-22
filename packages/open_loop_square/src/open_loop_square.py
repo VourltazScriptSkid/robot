@@ -92,7 +92,7 @@ class Drive_Square:
         ticks_needed = distance * TICKS_PER_METER
         self.initial_left_ticks = self.left_ticks
 
-        rate = rospy.Rate(10)
+        rate = rospy.Rate(60)
         while abs(self.left_ticks - self.initial_left_ticks) < ticks_needed:
             self.cmd_msg.v = 0.2
             self.cmd_msg.omega = 0.0
@@ -109,7 +109,7 @@ class Drive_Square:
         self.initial_left_ticks = self.left_ticks
         self.initial_right_ticks = self.right_ticks
 
-        rate = rospy.Rate(10)
+        rate = rospy.Rate(60)
         while abs((self.right_ticks - self.initial_right_ticks) - 
                 (self.left_ticks - self.initial_left_ticks)) < ticks_needed:
             self.cmd_msg.v = 0.0
