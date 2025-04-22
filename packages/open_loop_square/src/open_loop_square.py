@@ -43,7 +43,7 @@ class Drive_Square:
         #YOUR CODE GOES HERE#
         rate = rospy.Rate(10)  # 10 Hz control rate
         linear_speed = 0.2      # meters per second
-        turn_speed = 1.0        # radians per second
+        turn_speed = 4.0        # radians per second
 
         forward_duration = 2.5  # time to travel 1 meter
         turn_duration = math.pi / 2 / turn_speed  # time to turn 90 degrees
@@ -66,6 +66,7 @@ class Drive_Square:
                 self.cmd_msg.omega = turn_speed
                 self.pub.publish(self.cmd_msg)
                 rate.sleep()
+
 
         ######################
                 
