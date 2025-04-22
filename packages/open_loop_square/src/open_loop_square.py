@@ -24,7 +24,14 @@ class Drive_Square:
             self.stop_robot()
         elif msg.state == "LANE_FOLLOWING":            
             rospy.sleep(1) # Wait for a sec for the node to be ready
-            self.move_robot()
+            self.move_straight(1)
+            self.rotate_in_place(90)
+            self.move_straight(1)
+            self.rotate_in_place(90)
+            self.move_straight(1)
+            self.rotate_in_place(90)
+            self.move_straight(1)
+            self.rotate_in_place(90)
  
     # Sends zero velocities to stop the robot
     def stop_robot(self):
@@ -71,6 +78,40 @@ class Drive_Square:
             self.cmd_msg.omega = 0.0
             self.pub.publish(self.cmd_msg)
             rospy.sleep(0.1)
+
+    def move_straight(self, distance):
+        TICKS_PER_METER = 723
+        ticks_needed = distance * TICKS_PER_METER
+        self.initial_left_ticks = self.left_ticks
+
+        rate = rospy.Rate(10)
+        while abs(self.left_ticks - self.initial_left_ticks) < ticks_needed:
+            self.cmd_msg.v = 0.2
+            self.cmd_msg.omega = 0.0
+            self.cmd_msg.header.stamp = rospy.Time.now()
+            self.pub.publish(self.cmd_msg)
+            rate.sleep()
+
+        self.stop_robot()
+
+
+    def rotate_in_place(self, angle_deg):
+        TICKS_PER_FULL_ROTATION = 359
+        ticks_needed = (angle_deg / 360.0) * TICKS_PER_FULL_ROTATION
+        self.initial_left_ticks = self.left_ticks
+        self.initial_right_ticks = self.right_ticks
+
+        rate = rospy.Rate(10)
+        while abs((self.right_ticks - self.initial_right_ticks) - 
+                (self.left_ticks - self.initial_left_ticks)) < ticks_needed:
+            self.cmd_msg.v = 0.0
+            self.cmd_msg.omega = 1.0
+            self.cmd_msg.header.stamp = rospy.Time.now()
+            self.pub.publish(self.cmd_msg)
+            rate.sleep()
+
+        self.stop_robot()
+
 
 
 
