@@ -12,10 +12,17 @@ class Drive_Square:
 
         #Initialize ROS node
         rospy.init_node('drive_square_node', anonymous=True)
+
+        self.left_ticks = 0
+        self.right_ticks = 0
+
         
         #Initialize Pub/Subs
         self.pub = rospy.Publisher('/stripe/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
         rospy.Subscriber('/stripe/fsm_node/mode', FSMState, self.fsm_callback, queue_size=1)
+        rospy.Subscriber('/stripe/left_wheel_encoder_node/tick', WheelEncoderStamped, self.left_encoder_callback)
+        rospy.Subscriber('/stripe/right_wheel_encoder_node/tick', WheelEncoderStamped, self.right_encoder_callback)
+
         
     # robot only moves when lane following is selected on the duckiebot joystick app
     def fsm_callback(self, msg):
@@ -112,6 +119,11 @@ class Drive_Square:
 
         self.stop_robot()
 
+    def left_encoder_callback(self, msg):
+        self.left_ticks = msg.data  # adjust if it's not .data
+
+    def right_encoder_callback(self, msg):
+        self.right_ticks = msg.data
 
 
 
