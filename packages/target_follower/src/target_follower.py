@@ -64,27 +64,33 @@ class Target_Follower:
         rospy.loginfo("Tag detected: x = %.3f", x)
 
         # Control parameters
-        Kp = 0.4
-        max_omega = 0.6
-        min_omega = 0.2
-        deadzone = 0.06
+        Kp = 0.3          # Proportional gain
+        max_omega = 0.5   # Maximum turning speed
+        min_omega = 0.2   # Minimum to overcome friction
+        deadzone = 0.03   # Smaller deadzone to stay responsive
 
+        # Compute control
         error = x
+
         if abs(error) < deadzone:
-            omega = 0.0
-            rospy.loginfo("Tag centered. Holding position.")
+            omega = 0.0  # Stop if it's centered
         else:
             raw_omega = Kp * error
+            # Apply min omega for friction
             if abs(raw_omega) < min_omega:
                 omega = min_omega if raw_omega > 0 else -min_omega
             else:
                 omega = raw_omega
+            # Clamp to max_omega
             omega = max(-max_omega, min(omega, max_omega))
-            rospy.loginfo("Tracking tag. Error = %.3f | Omega = %.3f", error, omega)
 
+        # Send command
+        cmd_msg = Twist2DStamped()
+        cmd_msg.header.stamp = rospy.Time.now()
         cmd_msg.v = 0.0
         cmd_msg.omega = omega
         self.cmd_vel_pub.publish(cmd_msg)
+        rospy.loginfo("Tracking. Error: %.3f, Omega: %.3f", error, omega)
 
         
 
