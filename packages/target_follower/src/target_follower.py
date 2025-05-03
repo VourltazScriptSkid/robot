@@ -15,8 +15,8 @@ class Target_Follower:
         rospy.on_shutdown(self.clean_shutdown)
         
         ###### Init Pub/Subs. REMEMBER TO REPLACE "akandb" WITH YOUR ROBOT'S NAME #####
-        self.cmd_vel_pub = rospy.Publisher('/akandb/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
-        rospy.Subscriber('/akandb/apriltag_detector_node/detections', AprilTagDetectionArray, self.tag_callback, queue_size=1)
+        self.cmd_vel_pub = rospy.Publisher('/stripe/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
+        rospy.Subscriber('/stripe/apriltag_detector_node/detections', AprilTagDetectionArray, self.tag_callback, queue_size=1)
         ################################################################
 
         rospy.spin() # Spin forever but listen to message callbacks
@@ -39,27 +39,47 @@ class Target_Follower:
         self.cmd_vel_pub.publish(cmd_msg)
 
     def move_robot(self, detections):
-
-        #### YOUR CODE GOES HERE ####
-
         if len(detections) == 0:
+            # No tag detected → rotate slowly to search
+            cmd_msg = Twist2DStamped()
+            cmd_msg.header.stamp = rospy.Time.now()
+            cmd_msg.v = 0.0
+            cmd_msg.omega = 0.5  # Try a small value like 0.3–0.7
+            self.cmd_vel_pub.publish(cmd_msg)
+            rospy.loginfo("No tag detected. Searching by rotating...")
             return
 
+        # Tag detected → align with it
         x = detections[0].transform.translation.x
-        y = detections[0].transform.translation.y
         z = detections[0].transform.translation.z
 
-        rospy.loginfo("x,y,z: %f %f %f", x, y, z)
+        rospy.loginfo("x, z: %f %f", x, z)
 
+        # --- Control parameters ---
+        Kp = 2.5
+        max_omega = 3.0
+        min_omega = 0.2
+        deadzone = 0.05
 
-        # Publish a velocity
+        # --- Calculate control ---
+        error = x
+        if abs(error) < deadzone:
+            omega = 0.0
+        else:
+            omega = Kp * error
+            if omega > 0:
+                omega = max(min_omega, min(omega, max_omega))
+            else:
+                omega = min(-min_omega, max(omega, -max_omega))
+
+        # --- Publish command ---
         cmd_msg = Twist2DStamped()
         cmd_msg.header.stamp = rospy.Time.now()
         cmd_msg.v = 0.0
-        cmd_msg.omega = 0.0
+        cmd_msg.omega = omega
         self.cmd_vel_pub.publish(cmd_msg)
 
-        #############################
+
 
 if __name__ == '__main__':
     try:
