@@ -40,46 +40,42 @@ class Target_Follower:
 
     def move_robot(self, detections):
         if len(detections) == 0:
-            # No tag detected → rotate slowly to search
             cmd_msg = Twist2DStamped()
             cmd_msg.header.stamp = rospy.Time.now()
             cmd_msg.v = 0.0
-            cmd_msg.omega = 0.2  # Set a reasonable speed for searching (above friction threshold)
+            cmd_msg.omega = 0.3
             self.cmd_vel_pub.publish(cmd_msg)
-            rospy.loginfo("No tag detected. Searching by rotating slowly...")
+            rospy.loginfo("No tag detected. Searching...")
             return
-
-        # Tag detected → keep looking at the object (in-place rotation)
+            
         x = detections[0].transform.translation.x
         z = detections[0].transform.translation.z
 
-        rospy.loginfo("Tag position (x, z): %f, %f", x, z)
+        rospy.loginfo("Tag x = %.3f | Error = %.3f", x, error)
 
-        # --- Control parameters ---
-        Kp = 0.3  # Low proportional control constant for gradual rotation
-        max_omega = 0.5  # Slow max angular velocity
-        min_omega = 0.2  # Set a reasonable minimum omega to overcome friction
-        deadzone = 0.3  # Slightly larger deadzone to prevent constant minor corrections
+        # Control parameters
+        Kp = 0.35
+        max_omega = 0.55
+        min_omega = 0.25
+        deadzone = 0.03
 
-        # --- Calculate error (x position of the tag) ---
-        error = x  # The error is simply the x position of the tag
         if abs(error) < deadzone:
-            omega = 0.0  # Stop rotating once the robot is close enough to the object
+            omega = 0.0
         else:
-            omega = Kp * error  # Proportional control to rotate based on error
-            # Ensure omega is above the friction threshold (min_omega) to move
-            if abs(omega) < min_omega:
-                omega = min_omega if omega > 0 else -min_omega  # Ensure movement with a minimum threshold
-            # Clamp omega to stay within the defined limits
+            raw_omega = Kp * error
+            if abs(raw_omega) < min_omega:
+                omega = min_omega if raw_omega > 0 else -min_omega
+            else:
+                omega = raw_omega
             omega = max(-max_omega, min(omega, max_omega))
 
-        # --- Publish command ---
         cmd_msg = Twist2DStamped()
         cmd_msg.header.stamp = rospy.Time.now()
-        cmd_msg.v = 0.0  # No forward movement
-        cmd_msg.omega = omega  # Adjust angular velocity based on the error
+        cmd_msg.v = 0.0
+        cmd_msg.omega = omega
         self.cmd_vel_pub.publish(cmd_msg)
-        rospy.loginfo("Looking at the object. Omega: %f", omega)
+        rospy.loginfo("Tracking. Error: %.3f, Omega: %.3f", error, omega)
+
 
 
 
