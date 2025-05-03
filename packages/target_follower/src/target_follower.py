@@ -67,22 +67,28 @@ class Target_Follower:
         Kp = 0.3          # Proportional gain
         max_omega = 0.5   # Maximum turning speed
         min_omega = 0.2   # Minimum to overcome friction
-        deadzone = 0.03   # Smaller deadzone to stay responsive
+        deadzone = 0.01   # Smaller deadzone to stay responsive
 
         # Compute control
         error = x
 
         if abs(error) < deadzone:
-            omega = 0.0  # Stop if it's centered
+            omega = 0.0
+            rospy.loginfo("Tag centered. Holding position.")
         else:
-            raw_omega = Kp * error
-            # Apply min omega for friction
+            if abs(error) < 2 * deadzone:
+                # Slow correction in near-center range
+                Kp_local = 0.15
+            else:
+                Kp_local = Kp
+
+            raw_omega = Kp_local * error
             if abs(raw_omega) < min_omega:
                 omega = min_omega if raw_omega > 0 else -min_omega
             else:
                 omega = raw_omega
-            # Clamp to max_omega
             omega = max(-max_omega, min(omega, max_omega))
+
 
         # Send command
         cmd_msg = Twist2DStamped()
