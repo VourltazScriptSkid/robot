@@ -47,6 +47,7 @@ class Target_Follower:
             cmd_msg.omega = 0.5  # Try a small value like 0.3–0.7
             self.cmd_vel_pub.publish(cmd_msg)
             rospy.loginfo("No tag detected. Searching by rotating...")
+            rospy.sleep(0.3)
             return
 
         # Tag detected → align with it
