@@ -70,7 +70,7 @@ class Target_Follower:
         deadzone = 0.01   # Smaller deadzone to stay responsive
 
         # Compute control
-        error = x
+        error = -x
 
         if abs(error) < deadzone:
             omega = 0.0
