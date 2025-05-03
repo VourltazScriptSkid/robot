@@ -83,7 +83,7 @@ class Target_Follower:
         self.cmd_vel_pub.publish(cmd_msg)
 
         # Optional: Delay to slow down command rate (can help stabilize)
-        rospy.sleep(2)
+        rospy.sleep(50)
 
 
 if __name__ == '__main__':
