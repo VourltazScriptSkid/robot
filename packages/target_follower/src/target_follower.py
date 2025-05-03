@@ -38,47 +38,35 @@ class Target_Follower:
         cmd_msg.omega = 0.0
         self.cmd_vel_pub.publish(cmd_msg)
 
+
     def move_robot(self, detections):
+        cmd_msg = Twist2DStamped()
+        cmd_msg.header.stamp = rospy.Time.now()
+
         if len(detections) == 0:
-            # No tag detected → rotate slowly to search
-            cmd_msg = Twist2DStamped()
-            cmd_msg.header.stamp = rospy.Time.now()
+            # No tag detected → spin slowly to search
             cmd_msg.v = 0.0
-            cmd_msg.omega = 0.2  # Try a small value like 0.3–0.7
-            self.cmd_vel_pub.publish(cmd_msg)
-            rospy.loginfo("No tag detected. Searching by rotating...")
-            return
-
-        # Tag detected → align with it
-        x = detections[0].transform.translation.x
-        z = detections[0].transform.translation.z
-
-        rospy.loginfo("x, z: %f %f", x, z)
-
-        # --- Control parameters ---
-        Kp = 2.5
-        max_omega = 3.0
-        min_omega = 0.2
-        deadzone = 0.03
-
-        # --- Calculate control ---
-        error = x
-        if abs(error) < deadzone:
-            omega = 0.0
+            cmd_msg.omega = 0.1
+            rospy.loginfo("No tag detected. Spinning slowly to search...")
         else:
-            omega = Kp * error
+            # Tag detected → very slow alignment spin
+            x = detections[0].transform.translation.x
+            Kp = 0.5  # Smaller gain = slower response
+            omega = Kp * x
+
+            # Clamp omega to something very slow
+            max_omega = 0.15
+            min_omega = 0.05
             if omega > 0:
                 omega = max(min_omega, min(omega, max_omega))
             else:
                 omega = min(-min_omega, max(omega, -max_omega))
 
-        # --- Publish command ---
-        cmd_msg = Twist2DStamped()
-        cmd_msg.header.stamp = rospy.Time.now()
-        cmd_msg.v = 0.0
-        cmd_msg.omega = omega
-        self.cmd_vel_pub.publish(cmd_msg)
+            cmd_msg.v = 0.0
+            cmd_msg.omega = omega
+            rospy.loginfo("Tag found. x = %.4f, omega = %.4f", x, omega)
 
+        self.cmd_vel_pub.publish(cmd_msg)
 
 
 if __name__ == '__main__':
