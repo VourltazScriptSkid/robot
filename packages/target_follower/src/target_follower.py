@@ -43,45 +43,49 @@ class Target_Follower:
         cmd_msg.header.stamp = rospy.Time.now()
 
         if len(detections) == 0:
-            # No tag detected → slowly rotate to search
+            # Step-wise search: rotate briefly, then pause
+            rospy.loginfo("No tag detected. Rotating briefly to search...")
+
+            # Step 1: Rotate
             cmd_msg.v = 0.0
-            cmd_msg.omega = 0.2  # Just enough to overcome friction
+            cmd_msg.omega = 0.3
             self.cmd_vel_pub.publish(cmd_msg)
-            rospy.loginfo("No tag detected. Rotating slowly to search...")
-            rospy.sleep(50)
+            rospy.sleep(0.2)  # Rotate for 0.2 seconds
+
+            # Step 2: Stop and check again
+            cmd_msg.omega = 0.0
+            self.cmd_vel_pub.publish(cmd_msg)
+            rospy.sleep(0.3)  # Pause to let camera process
+
             return
 
-        # --- Get AprilTag x position from detection ---
-        x = detections[0].transform.translation.x  # Left/right offset in meters
+        # --- Tag detected ---
+        x = detections[0].transform.translation.x
         rospy.loginfo("Tag detected: x = %.3f", x)
 
-        # --- Control Parameters ---
-        Kp = 0.4           # Proportional gain (tune as needed)
-        max_omega = 0.6    # Max turn rate
-        min_omega = 0.2    # Min turn rate to overcome friction
-        deadzone = 0.03    # Do nothing if error is within this
+        # Control parameters
+        Kp = 0.4
+        max_omega = 0.6
+        min_omega = 0.2
+        deadzone = 0.06
 
-        # --- Control Logic ---
-        if abs(x) < deadzone:
+        error = x
+        if abs(error) < deadzone:
             omega = 0.0
             rospy.loginfo("Tag centered. Holding position.")
         else:
-            raw_omega = Kp * x  # P controller
-
-            # Apply minimum to overcome friction
+            raw_omega = Kp * error
             if abs(raw_omega) < min_omega:
                 omega = min_omega if raw_omega > 0 else -min_omega
             else:
                 omega = raw_omega
-
-            # Clamp to maximum
             omega = max(-max_omega, min(omega, max_omega))
-            rospy.loginfo("Tag x = %.3f | Error = %.3f | Omega = %.3f", x, error, omega)
+            rospy.loginfo("Tracking tag. Error = %.3f | Omega = %.3f", error, omega)
 
-        # Send command
         cmd_msg.v = 0.0
         cmd_msg.omega = omega
         self.cmd_vel_pub.publish(cmd_msg)
+
         
 
 
