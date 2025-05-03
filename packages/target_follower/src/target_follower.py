@@ -48,6 +48,7 @@ class Target_Follower:
             cmd_msg.omega = 0.2  # Just enough to overcome friction
             self.cmd_vel_pub.publish(cmd_msg)
             rospy.loginfo("No tag detected. Rotating slowly to search...")
+            rospy.sleep(50)
             return
 
         # --- Get AprilTag x position from detection ---
@@ -75,15 +76,13 @@ class Target_Follower:
 
             # Clamp to maximum
             omega = max(-max_omega, min(omega, max_omega))
-            rospy.loginfo("Tracking tag. Error = %.3f | Omega = %.3f", x, omega)
+            rospy.loginfo("Tag x = %.3f | Error = %.3f | Omega = %.3f", x, error, omega)
 
         # Send command
         cmd_msg.v = 0.0
         cmd_msg.omega = omega
         self.cmd_vel_pub.publish(cmd_msg)
-
-        # Optional: Delay to slow down command rate (can help stabilize)
-        rospy.sleep(50)
+        
 
 
 if __name__ == '__main__':
