@@ -44,7 +44,7 @@ class Target_Follower:
             cmd_msg = Twist2DStamped()
             cmd_msg.header.stamp = rospy.Time.now()
             cmd_msg.v = 0.0
-            cmd_msg.omega = 0.05  # Slow rotation speed to search
+            cmd_msg.omega = 0.3  # Slow rotation speed to search
             self.cmd_vel_pub.publish(cmd_msg)
             rospy.loginfo("No tag detected. Searching by rotating slowly...")
             return
