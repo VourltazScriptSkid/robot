@@ -56,10 +56,10 @@ class Target_Follower:
         rospy.loginfo("Tag position (x, z): %f, %f", x, z)
 
         # --- Control parameters ---
-        Kp = 0.1  # Low proportional control constant for gradual rotation
+        Kp = 0.3  # Low proportional control constant for gradual rotation
         max_omega = 0.5  # Slow max angular velocity
         min_omega = 0.2  # Set a reasonable minimum omega to overcome friction
-        deadzone = 0.1  # Slightly larger deadzone to prevent constant minor corrections
+        deadzone = 0.3  # Slightly larger deadzone to prevent constant minor corrections
 
         # --- Calculate error (x position of the tag) ---
         error = x  # The error is simply the x position of the tag
