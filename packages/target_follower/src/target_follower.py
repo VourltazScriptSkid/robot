@@ -56,7 +56,7 @@ class Target_Follower:
         rospy.loginfo("Tag position (x, z): %f, %f", x, z)
 
         # --- Control parameters ---
-        Kp = 2.5  # Proportional control constant for angular velocity
+        Kp = 1  # Proportional control constant for angular velocity
         max_omega = 1.0  # Maximum angular velocity
         min_omega = 0.2  # Minimum angular velocity
         deadzone = 0.03  # Deadzone to prevent oscillation when very close to the target
