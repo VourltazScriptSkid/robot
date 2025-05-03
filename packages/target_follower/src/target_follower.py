@@ -57,9 +57,9 @@ class Target_Follower:
 
         # --- Control parameters ---
         Kp = 1  # Proportional control constant for angular velocity
-        max_omega = 1.0  # Maximum angular velocity
-        min_omega = 0.2  # Minimum angular velocity
-        deadzone = 0.03  # Deadzone to prevent oscillation when very close to the target
+        max_omega = 0.75  # Maximum angular velocity
+        min_omega = 0.25  # Minimum angular velocity
+        deadzone = 0.05  # Deadzone to prevent oscillation when very close to the target
 
         # --- Calculate error (x position of the tag) ---
         error = x
