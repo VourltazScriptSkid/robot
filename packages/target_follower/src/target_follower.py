@@ -44,7 +44,7 @@ class Target_Follower:
             cmd_msg = Twist2DStamped()
             cmd_msg.header.stamp = rospy.Time.now()
             cmd_msg.v = 0.0
-            cmd_msg.omega = 0.5  # Try a small value like 0.3–0.7
+            cmd_msg.omega = 0.2  # Try a small value like 0.3–0.7
             self.cmd_vel_pub.publish(cmd_msg)
             rospy.loginfo("No tag detected. Searching by rotating...")
             rospy.sleep(1)
@@ -60,7 +60,7 @@ class Target_Follower:
         Kp = 2.5
         max_omega = 3.0
         min_omega = 0.2
-        deadzone = 0.05
+        deadzone = 0.03
 
         # --- Calculate control ---
         error = x
