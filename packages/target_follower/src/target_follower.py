@@ -44,12 +44,12 @@ class Target_Follower:
             cmd_msg = Twist2DStamped()
             cmd_msg.header.stamp = rospy.Time.now()
             cmd_msg.v = 0.0
-            cmd_msg.omega = 0.3  # Slow rotation speed to search
+            cmd_msg.omega = 0.1  # Rotate slowly while searching
             self.cmd_vel_pub.publish(cmd_msg)
             rospy.loginfo("No tag detected. Searching by rotating slowly...")
             return
 
-        # Tag detected → center the robot on the tag
+        # Tag detected → keep looking at the object (in-place rotation)
         x = detections[0].transform.translation.x
         z = detections[0].transform.translation.z
 
@@ -57,16 +57,16 @@ class Target_Follower:
 
         # --- Control parameters ---
         Kp = 2.5  # Proportional control constant for angular velocity
-        max_omega = 3.0  # Maximum angular velocity
+        max_omega = 1.0  # Maximum angular velocity
         min_omega = 0.2  # Minimum angular velocity
         deadzone = 0.03  # Deadzone to prevent oscillation when very close to the target
 
         # --- Calculate error (x position of the tag) ---
         error = x
         if abs(error) < deadzone:
-            omega = 0.0  # Stop rotating once the robot is close enough to the target
+            omega = 0.0  # Stop rotating once the robot is centered on the object
         else:
-            omega = Kp * error
+            omega = Kp * error  # Rotate to keep the object centered
             # Clamp omega to stay within the defined limits
             if omega > 0:
                 omega = max(min_omega, min(omega, max_omega))
@@ -79,6 +79,7 @@ class Target_Follower:
         cmd_msg.v = 0.0  # No forward movement
         cmd_msg.omega = omega  # Adjust angular velocity based on the error
         self.cmd_vel_pub.publish(cmd_msg)
+        rospy.loginfo("Looking at the object. Omega: %f", omega)
 
 
 if __name__ == '__main__':
