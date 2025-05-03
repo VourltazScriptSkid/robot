@@ -44,7 +44,7 @@ class Target_Follower:
             cmd_msg = Twist2DStamped()
             cmd_msg.header.stamp = rospy.Time.now()
             cmd_msg.v = 0.0
-            cmd_msg.omega = 0.2  # Rotate slowly while searching
+            cmd_msg.omega = 0.2  # Set a reasonable speed for searching (above friction threshold)
             self.cmd_vel_pub.publish(cmd_msg)
             rospy.loginfo("No tag detected. Searching by rotating slowly...")
             return
@@ -56,22 +56,22 @@ class Target_Follower:
         rospy.loginfo("Tag position (x, z): %f, %f", x, z)
 
         # --- Control parameters ---
-        Kp = 0.2 # Proportional control constant for angular velocity
-        max_omega = 0.2  # Maximum angular velocity
-        min_omega = 0.2  # Minimum angular velocity
-        deadzone = 0.1  # Deadzone to prevent oscillation when very close to the target
+        Kp = 0.1  # Low proportional control constant for gradual rotation
+        max_omega = 0.5  # Slow max angular velocity
+        min_omega = 0.2  # Set a reasonable minimum omega to overcome friction
+        deadzone = 0.1  # Slightly larger deadzone to prevent constant minor corrections
 
         # --- Calculate error (x position of the tag) ---
-        error = x
+        error = x  # The error is simply the x position of the tag
         if abs(error) < deadzone:
-            omega = 0.0  # Stop rotating once the robot is centered on the object
+            omega = 0.0  # Stop rotating once the robot is close enough to the object
         else:
-            omega = Kp * error  # Rotate to keep the object centered
+            omega = Kp * error  # Proportional control to rotate based on error
+            # Ensure omega is above the friction threshold (min_omega) to move
+            if abs(omega) < min_omega:
+                omega = min_omega if omega > 0 else -min_omega  # Ensure movement with a minimum threshold
             # Clamp omega to stay within the defined limits
-            if omega > 0:
-                omega = max(min_omega, min(omega, max_omega))
-            else:
-                omega = min(-min_omega, max(omega, -max_omega))
+            omega = max(-max_omega, min(omega, max_omega))
 
         # --- Publish command ---
         cmd_msg = Twist2DStamped()
@@ -80,6 +80,7 @@ class Target_Follower:
         cmd_msg.omega = omega  # Adjust angular velocity based on the error
         self.cmd_vel_pub.publish(cmd_msg)
         rospy.loginfo("Looking at the object. Omega: %f", omega)
+
 
 
 if __name__ == '__main__':
