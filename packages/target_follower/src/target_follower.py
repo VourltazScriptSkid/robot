@@ -67,7 +67,7 @@ class Target_Follower:
         Kp = 0.3          # Proportional gain
         max_omega = 0.5   # Maximum turning speed
         min_omega = 0.2   # Minimum to overcome friction
-        deadzone = 0.05   # Smaller deadzone to stay responsive
+        deadzone = 0.1   # Smaller deadzone to stay responsive
 
         # Compute control
         error = -x
