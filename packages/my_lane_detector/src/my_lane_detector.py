@@ -58,7 +58,7 @@ class Lane_Detector:
 
         # Edge detection
         white_edges = cv2.Canny(white_result, 50, 150)
-        yellow_edges = cv2.Canny(yellow_result, 50, 150)
+        yellow_edges = cv2.Canny(yellow_result, 10, 40)
 
         # Hough transform
         lines_white = cv2.HoughLinesP(white_edges, 1, np.pi / 180, threshold=50, minLineLength=50, maxLineGap=10)

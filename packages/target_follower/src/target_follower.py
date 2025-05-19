@@ -43,20 +43,18 @@ class Target_Follower:
         cmd_msg.header.stamp = rospy.Time.now()
 
         if len(detections) == 0:
-            # Step-wise search: rotate briefly, then pause
             rospy.loginfo("No tag detected. Rotating briefly to search...")
 
             # Step 1: Rotate
             cmd_msg.v = 0.0
             cmd_msg.omega = 0.3
             self.cmd_vel_pub.publish(cmd_msg)
-            rospy.sleep(0.2)  # Rotate for 0.2 seconds
+            rospy.sleep(0.2)  # Rotate briefly
 
-            # Step 2: Stop and check again
+            # Step 2: Stop
             cmd_msg.omega = 0.0
             self.cmd_vel_pub.publish(cmd_msg)
-            rospy.sleep(0.3)  # Pause to let camera process
-
+            rospy.sleep(0.3)  # Pause to let camera stabilize
             return
 
         # --- Tag detected ---
@@ -64,10 +62,10 @@ class Target_Follower:
         rospy.loginfo("Tag detected: x = %.3f", x)
 
         # Control parameters
-        Kp = 0.3          # Proportional gain
-        max_omega = 0.5   # Maximum turning speed
-        min_omega = 0.2   # Minimum to overcome friction
-        deadzone = 0.1   # Smaller deadzone to stay responsive
+        Kp = 0.4           # Slightly increased gain for faster response
+        max_omega = 0.6    # Allow faster turning
+        min_omega = 0.2    # Ensure enough power to move
+        deadzone = 0.05    # Very small deadzone to stay focused
 
         # Compute control
         error = -x
@@ -76,28 +74,18 @@ class Target_Follower:
             omega = 0.0
             rospy.loginfo("Tag centered. Holding position.")
         else:
-            if abs(error) < 2 * deadzone:
-                # Slow correction in near-center range
-                Kp_local = 0.15
-            else:
-                Kp_local = Kp
-
-            raw_omega = Kp_local * error
+            raw_omega = Kp * error
             if abs(raw_omega) < min_omega:
                 omega = min_omega if raw_omega > 0 else -min_omega
             else:
                 omega = raw_omega
             omega = max(-max_omega, min(omega, max_omega))
 
-
-        # Send command
-        cmd_msg = Twist2DStamped()
-        cmd_msg.header.stamp = rospy.Time.now()
+        # Send command continuously
         cmd_msg.v = 0.0
         cmd_msg.omega = omega
         self.cmd_vel_pub.publish(cmd_msg)
         rospy.loginfo("Tracking. Error: %.3f, Omega: %.3f", error, omega)
-
         
 
 
