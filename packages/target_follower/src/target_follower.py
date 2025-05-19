@@ -65,7 +65,7 @@ class Target_Follower:
         Kp = 0.4           # Slightly increased gain for faster response
         max_omega = 0.6    # Allow faster turning
         min_omega = 0.2    # Ensure enough power to move
-        deadzone = 0.2    # Very small deadzone to stay focused
+        deadzone = 0.05    # Very small deadzone to stay focused
 
         # Compute control
         error = -x
