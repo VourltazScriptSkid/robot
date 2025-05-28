@@ -5,136 +5,96 @@ from duckietown_msgs.msg import Twist2DStamped
 from duckietown_msgs.msg import FSMState
 from duckietown_msgs.msg import WheelEncoderStamped
 import math
- 
-class Drive_Square:
-    def __init__(self):
-        #Initialize global class variables
-        self.cmd_msg = Twist2DStamped()
 
-        #Initialize ROS node
+class DriveSquare:
+    def __init__(self):
         rospy.init_node('drive_square_node', anonymous=True)
 
-        self.left_ticks = 0
-        self.right_ticks = 0
-
-        
-        #Initialize Pub/Subs
+        # Publisher and Subscribers
         self.pub = rospy.Publisher('/stripe/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
         rospy.Subscriber('/stripe/fsm_node/mode', FSMState, self.fsm_callback, queue_size=1)
         rospy.Subscriber('/stripe/left_wheel_encoder_node/tick', WheelEncoderStamped, self.left_encoder_callback)
         rospy.Subscriber('/stripe/right_wheel_encoder_node/tick', WheelEncoderStamped, self.right_encoder_callback)
 
-        
-    # robot only moves when lane following is selected on the duckiebot joystick app
+        self.cmd_msg = Twist2DStamped()
+        self.left_ticks = 0
+        self.right_ticks = 0
+
+        # Constants
+        self.TICKS_PER_METER = 723
+        self.TICKS_PER_90_DEG = 90  # experimentally determined (adjust if needed)
+
+        # Motion control state
+        self.state = "idle"
+        self.start_left_ticks = 0
+        self.start_right_ticks = 0
+        self.edge_index = 0  # 0–3 for each square side
+
+        # Start timer loop
+        rospy.Timer(rospy.Duration(0.01), self.timer_callback)  # 100 Hz
+
+        rospy.loginfo("Closed-loop drive_square_node initialized")
+        rospy.spin()
+
     def fsm_callback(self, msg):
-        rospy.loginfo("State: %s", msg.state)
-        if msg.state == "NORMAL_JOYSTICK_CONTROL":
-            self.stop_robot()
-        elif msg.state == "LANE_FOLLOWING":            
-            rospy.sleep(1) # Wait for a sec for the node to be ready
-            self.move_straight(1)
-            self.rotate_in_place(90)
-            self.move_straight(1)
-            self.rotate_in_place(90)
-            self.move_straight(1)
-            self.rotate_in_place(90)
-            self.move_straight(1)
-            self.rotate_in_place(90)
- 
-    # Sends zero velocities to stop the robot
-    def stop_robot(self):
-        self.cmd_msg.header.stamp = rospy.Time.now()
-        self.cmd_msg.v = 0.0
-        self.cmd_msg.omega = 0.0
-        self.pub.publish(self.cmd_msg)
- 
-    # Spin forever but listen to message callbacks
-    def run(self):
-    	rospy.spin() # keeps node from exiting until node has shutdown
-
-    # Robot drives in a square and then stops
-    def move_robot(self):
-
-        #YOUR CODE GOES HERE#
-        rate = rospy.Rate(10)  # 10 Hz control rate
-        linear_speed = 0.2      # meters per second
-        turn_speed = 4.0        # radians per second
-
-        forward_duration = 2.5  # time to travel 1 meter
-        turn_duration = math.pi / 2 / turn_speed * 0.5 # time to turn 90 degrees
-
-        for i in range(4):
-            rospy.loginfo(f"Side {i+1}: Moving forward")
-            start_time = rospy.Time.now()
-            while (rospy.Time.now() - start_time).to_sec() < forward_duration:
-                self.cmd_msg.header.stamp = rospy.Time.now()
-                self.cmd_msg.v = linear_speed
-                self.cmd_msg.omega = 0.0
-                self.pub.publish(self.cmd_msg)
-                rate.sleep()
-
-            rospy.loginfo(f"Side {i+1}: Turning 90 degrees")
-            start_time = rospy.Time.now()
-            while (rospy.Time.now() - start_time).to_sec() < turn_duration:
-                self.cmd_msg.header.stamp = rospy.Time.now()
-                self.cmd_msg.v = 0.0
-                self.cmd_msg.omega = turn_speed
-                self.pub.publish(self.cmd_msg)
-                rate.sleep()
-
-            self.cmd_msg.v = 0.0
-            self.cmd_msg.omega = 0.0
-            self.pub.publish(self.cmd_msg)
-            rospy.sleep(0.1)
-
-    def move_straight(self, distance):
-        TICKS_PER_METER = 723
-        ticks_needed = distance * TICKS_PER_METER
-        self.initial_left_ticks = self.left_ticks
-
-        rate = rospy.Rate(60)
-        while abs(self.left_ticks - self.initial_left_ticks) < ticks_needed:
-            self.cmd_msg.v = 0.2
-            self.cmd_msg.omega = 0.0
-            self.cmd_msg.header.stamp = rospy.Time.now()
-            self.pub.publish(self.cmd_msg)
-            rate.sleep()
-
-        self.stop_robot()
-
-
-    def rotate_in_place(self, angle_deg):
-        TICKS_PER_FULL_ROTATION = 359
-        ticks_needed = (angle_deg / 360.0) * TICKS_PER_FULL_ROTATION
-        self.initial_left_ticks = self.left_ticks
-        self.initial_right_ticks = self.right_ticks
-
-        rate = rospy.Rate(60)
-        while abs((self.right_ticks - self.initial_right_ticks) - 
-                (self.left_ticks - self.initial_left_ticks)) < ticks_needed:
-            self.cmd_msg.v = 0.0
-            self.cmd_msg.omega = 1.0
-            self.cmd_msg.header.stamp = rospy.Time.now()
-            self.pub.publish(self.cmd_msg)
-            rate.sleep()
-
-        self.stop_robot()
+        rospy.loginfo("FSM State: %s", msg.state)
+        if msg.state == "LANE_FOLLOWING" and self.state == "idle":
+            self.state = "moving_straight"
+            self.start_left_ticks = self.left_ticks
+            rospy.loginfo("Starting closed-loop square movement")
 
     def left_encoder_callback(self, msg):
-        self.left_ticks = msg.data  
+        self.left_ticks = msg.data
 
     def right_encoder_callback(self, msg):
         self.right_ticks = msg.data
 
+    def timer_callback(self, event):
+        if self.state == "moving_straight":
+            ticks_traveled = abs(self.left_ticks - self.start_left_ticks)
+            if ticks_traveled < self.TICKS_PER_METER:
+                self.cmd_msg.v = 0.2
+                self.cmd_msg.omega = 0.0
+            else:
+                self.state = "turning"
+                self.start_left_ticks = self.left_ticks
+                self.start_right_ticks = self.right_ticks
+                rospy.loginfo(f"Completed side {self.edge_index + 1}, now turning")
+                self.cmd_msg.v = 0.0
+                self.cmd_msg.omega = 0.0
 
+        elif self.state == "turning":
+            delta_ticks = abs((self.right_ticks - self.start_right_ticks) - (self.left_ticks - self.start_left_ticks))
+            if delta_ticks < self.TICKS_PER_90_DEG:
+                self.cmd_msg.v = 0.0
+                self.cmd_msg.omega = 1.0
+            else:
+                self.edge_index += 1
+                if self.edge_index < 4:
+                    self.state = "moving_straight"
+                    self.start_left_ticks = self.left_ticks
+                    rospy.loginfo(f"Turn complete. Starting side {self.edge_index + 1}")
+                else:
+                    self.state = "done"
+                    rospy.loginfo("Square complete")
+                self.cmd_msg.v = 0.0
+                self.cmd_msg.omega = 0.0
 
-        ######################
-                
-        self.stop_robot()
+        elif self.state == "done":
+            self.cmd_msg.v = 0.0
+            self.cmd_msg.omega = 0.0
+
+        else:
+            # Idle or unknown state
+            self.cmd_msg.v = 0.0
+            self.cmd_msg.omega = 0.0
+
+        # Publish command
+        self.cmd_msg.header.stamp = rospy.Time.now()
+        self.pub.publish(self.cmd_msg)
 
 if __name__ == '__main__':
     try:
-        duckiebot_movement = Drive_Square()
-        duckiebot_movement.run()
+        DriveSquare()
     except rospy.ROSInterruptException:
         pass
