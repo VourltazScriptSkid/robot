@@ -17,7 +17,7 @@ class DriveSquare:
 
         self.TICKS_PER_METER = 738
         self.TICKS_PER_90_DEG = 90
-        self.STOP_DISTANCE = 0.1  # meters
+        self.STOP_DISTANCE = 0.2  # meters
 
         self.pub = rospy.Publisher('/stripe/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
         rospy.Subscriber('/stripe/fsm_node/mode', FSMState, self.fsm_callback, queue_size=1)

@@ -43,50 +43,62 @@ class Target_Follower:
         cmd_msg.header.stamp = rospy.Time.now()
 
         if len(detections) == 0:
-            rospy.loginfo("No tag detected. Rotating briefly to search...")
-
-            # Step 1: Rotate
-            cmd_msg.v = 0.0
-            cmd_msg.omega = 0.3
-            self.cmd_vel_pub.publish(cmd_msg)
-            rospy.sleep(0.2)  # Rotate briefly
-
-            # Step 2: Stop
-            cmd_msg.omega = 0.0
-            self.cmd_vel_pub.publish(cmd_msg)
-            rospy.sleep(0.3)  # Pause to let camera stabilize
+            rospy.loginfo("No tag detected. Staying stationary.")
+            self.stop_robot()
             return
 
         # --- Tag detected ---
-        x = detections[0].transform.translation.x
-        rospy.loginfo("Tag detected: x = %.3f", x)
+        x = detections[0].transform.translation.x  # left/right offset
+        z = detections[0].transform.translation.z  # forward distance to tag
+        rospy.loginfo("Tag detected: x = %.3f, z = %.3f", x, z)
 
         # Control parameters
-        Kp = 0.4           # Slightly increased gain for faster response
-        max_omega = 0.6    # Allow faster turning
-        min_omega = 0.2    # Ensure enough power to move
-        deadzone = 0.05    # Very small deadzone to stay focused
+        Kp_angle = 0.4         # Gain for turning
+        Kp_dist = 0.8          # Gain for forward motion
 
-        # Compute control
-        error = -x
+        max_omega = 0.6        # Maximum angular speed
+        min_omega = 0.2        # Minimum angular speed to overcome inertia
+        deadzone_x = 0.05      # Tag center tolerance
 
-        if abs(error) < deadzone:
+        max_v = 0.2            # Maximum forward speed
+        min_v = 0.05           # Minimum linear speed to overcome inertia
+        deadzone_z = 0.02      # Distance deadzone (to hold position)
+
+        target_distance = 0.2  # Desired distance to maintain from the tag
+
+        # Compute error
+        lateral_error = -x
+        distance_error = z - target_distance
+
+        # --- Angular control (turning to center tag) ---
+        if abs(lateral_error) < deadzone_x:
             omega = 0.0
-            rospy.loginfo("Tag centered. Holding position.")
+            rospy.loginfo("Tag centered. No turn.")
         else:
-            raw_omega = Kp * error
+            raw_omega = Kp_angle * lateral_error
             if abs(raw_omega) < min_omega:
                 omega = min_omega if raw_omega > 0 else -min_omega
             else:
                 omega = raw_omega
             omega = max(-max_omega, min(omega, max_omega))
 
-        # Send command continuously
-        cmd_msg.v = 0.0
+        # --- Linear control (forward/backward) ---
+        if abs(distance_error) < deadzone_z:
+            v = 0.0
+            rospy.loginfo("At desired distance. Holding position.")
+        else:
+            raw_v = Kp_dist * distance_error
+            if abs(raw_v) < min_v:
+                v = min_v if raw_v > 0 else -min_v
+            else:
+                v = raw_v
+            v = max(-max_v, min(v, max_v))
+
+        # Send command
+        cmd_msg.v = v
         cmd_msg.omega = omega
         self.cmd_vel_pub.publish(cmd_msg)
-        rospy.loginfo("Tracking. Error: %.3f, Omega: %.3f", error, omega)
-        
+        rospy.loginfo("Tracking. Distance error: %.3f, Lateral error: %.3f, v: %.3f, omega: %.3f", distance_error, lateral_error, v, omega)
 
 
 if __name__ == '__main__':
