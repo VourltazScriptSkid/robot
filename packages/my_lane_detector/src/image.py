@@ -33,15 +33,14 @@ for h_thresh in hough_thresholds:
 ### Step 3: HSV vs RGB Yellow Detection ###
 # HSV yellow mask
 hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-lower_yellow = np.array([15, 80, 80])
-upper_yellow = np.array([30, 255, 255])
+lower_yellow = np.array([100, 100, 0])
+upper_yellow = np.array([255, 255, 160])
 yellow_hsv = cv2.inRange(hsv, lower_yellow, upper_yellow)
 yellow_hsv_result = cv2.bitwise_and(img, img, mask=yellow_hsv)
 cv2.imwrite("yellow_hsv.png", yellow_hsv_result)
 
-# RGB yellow mask (loosened slightly if needed)
-lower_yellow_rgb = np.array([150, 150, 0])
-upper_yellow_rgb = np.array([255, 255, 150])
+lower_yellow = np.array([100, 100, 0])
+upper_yellow = np.array([255, 255, 160])
 yellow_rgb = cv2.inRange(img, lower_yellow_rgb, upper_yellow_rgb)
 yellow_rgb_result = cv2.bitwise_and(img, img, mask=yellow_rgb)
 cv2.imwrite("yellow_rgb.png", yellow_rgb_result)
@@ -49,8 +48,8 @@ cv2.imwrite("yellow_rgb.png", yellow_rgb_result)
 
 ### Step 4: Lighting Condition Test ###
 # Simulate darker and brighter images
-dark_img = cv2.convertScaleAbs(img, alpha=0.6, beta=0)     # Not too dark
-bright_img = cv2.convertScaleAbs(img, alpha=1.2, beta=20)  # Not too bright
+dark_img = cv2.convertScaleAbs(img, alpha=0.8, beta=20)     # Not too dark
+bright_img = cv2.convertScaleAbs(img, alpha=1.1, beta=10)  # Not too bright
 
 # Use same HSV yellow detection
 for variant_name, variant in [("dark", dark_img), ("bright", bright_img)]:
