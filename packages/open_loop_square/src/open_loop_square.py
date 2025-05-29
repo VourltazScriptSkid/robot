@@ -2,26 +2,28 @@
 
 import rospy
 from duckietown_msgs.msg import Twist2DStamped, FSMState, WheelEncoderStamped
+from sensor_msgs.msg import Range
 
 class DriveSquare:
     def __init__(self):
         rospy.init_node('drive_square_node', anonymous=True)
 
-        # === CHANGE THIS FOR DIFFERENT TEST VIDEOS ===
         self.test_mode = "square_floor_1"
 
         self.cmd_msg = Twist2DStamped()
         self.left_ticks = 0
         self.right_ticks = 0
+        self.tof_distance = float('inf')  # default: no obstacle
 
-        # Based on your measurements:
-        self.TICKS_PER_METER = (738 + 738) / 2
-        self.TICKS_PER_90_DEG = (90 + 90) / 2
+        self.TICKS_PER_METER = 738
+        self.TICKS_PER_90_DEG = 90
+        self.STOP_DISTANCE = 0.1  # meters
 
         self.pub = rospy.Publisher('/stripe/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
         rospy.Subscriber('/stripe/fsm_node/mode', FSMState, self.fsm_callback, queue_size=1)
         rospy.Subscriber('/stripe/left_wheel_encoder_node/tick', WheelEncoderStamped, self.left_encoder_callback)
         rospy.Subscriber('/stripe/right_wheel_encoder_node/tick', WheelEncoderStamped, self.right_encoder_callback)
+        rospy.Subscriber('/stripe/front_center_tof_driver_node/range', Range, self.tof_callback)
 
         self.received_encoder_data = False
 
@@ -37,6 +39,9 @@ class DriveSquare:
     def right_encoder_callback(self, msg):
         self.right_ticks = msg.data
 
+    def tof_callback(self, msg):
+        self.tof_distance = msg.range
+
     def stop_robot(self):
         self.cmd_msg.header.stamp = rospy.Time.now()
         self.cmd_msg.v = 0.0
@@ -49,7 +54,6 @@ class DriveSquare:
 
         initial_left = self.left_ticks
         initial_right = self.right_ticks
-
         ticks_needed = abs(distance_m) * self.TICKS_PER_METER
         rate = rospy.Rate(60)
 
@@ -61,6 +65,13 @@ class DriveSquare:
             if abs(avg_ticks) >= ticks_needed:
                 break
 
+            if self.tof_distance < self.STOP_DISTANCE:
+                rospy.loginfo("Obstacle detected. Pausing...")
+                self.stop_robot()
+                while self.tof_distance < self.STOP_DISTANCE and not rospy.is_shutdown():
+                    rate.sleep()
+                rospy.loginfo("Obstacle cleared. Resuming...")
+
             self.cmd_msg.v = speed_mps
             self.cmd_msg.omega = 0.0
             self.cmd_msg.header.stamp = rospy.Time.now()
@@ -68,7 +79,7 @@ class DriveSquare:
             rate.sleep()
 
         self.stop_robot()
-        rospy.sleep(0.5)  # Delay after motion
+        rospy.sleep(0.5)
 
     def rotate_in_place(self, angle_deg, angular_speed):
         direction = 1 if angle_deg > 0 else -1
@@ -76,7 +87,6 @@ class DriveSquare:
 
         initial_left = self.left_ticks
         initial_right = self.right_ticks
-
         ticks_needed = abs(angle_deg) / 90.0 * self.TICKS_PER_90_DEG
         rate = rospy.Rate(60)
 
@@ -95,7 +105,7 @@ class DriveSquare:
             rate.sleep()
 
         self.stop_robot()
-        rospy.sleep(0.5)  # Delay after rotation
+        rospy.sleep(0.5)
 
     def draw_square(self, speed_linear, speed_angular):
         for _ in range(4):
