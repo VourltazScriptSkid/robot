@@ -11,6 +11,7 @@ class Autopilot:
         # Initialize ROS node
         rospy.init_node('autopilot_node', anonymous=True)
 
+        self.latest_distance = float('inf')
         self.robot_state = "LANE_FOLLOWING"
         self.ignore_tof = False  # Flag to ignore tof detections temporarily
 
@@ -33,7 +34,7 @@ class Autopilot:
         if self.ignore_tof:
             return
 
-        self.move_robot(msg.range)
+        self.latest_distance = msg.range
 
     # Stop Robot before node has shut down. This ensures the robot doesn't keep moving with the latest velocity command
     def clean_shutdown(self):
@@ -78,9 +79,9 @@ class Autopilot:
         timeout = rospy.Duration(5.0)
 
         rate = rospy.Rate(10)
-        while rospy.Time.now() - wait_time < timeout:
-            distance_msg = rospy.wait_for_message('/stripe/front_center_tof_driver_node/range', Range, timeout=0.5)
-            if distance_msg.range > 0.3:
+        start_time = rospy.Time.now()
+        while rospy.Time.now() - start_time < timeout:
+            if self.latest_distance > 0.3:
                 rospy.loginfo("Obstacle cleared. Resuming lane following.")
                 self.set_state("LANE_FOLLOWING")
                 return
