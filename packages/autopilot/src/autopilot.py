@@ -89,12 +89,12 @@ class Autopilot:
 
         # Overtake maneuver (open loop)
         rospy.loginfo("Obstacle still there. Executing overtake maneuver.")
-
-        # Step 1: Curve right
+        
+        # Step 1: Curve left
         cmd_msg = Twist2DStamped()
         cmd_msg.header.stamp = rospy.Time.now()
         cmd_msg.v = 0.2
-        cmd_msg.omega = -2.0
+        cmd_msg.omega = 2.0
         self.cmd_vel_pub.publish(cmd_msg)
         rospy.sleep(1.0)
 
@@ -104,9 +104,9 @@ class Autopilot:
         self.cmd_vel_pub.publish(cmd_msg)
         rospy.sleep(1.2)
 
-        # Step 3: Curve left
+        # Step 3: Curve right
         cmd_msg.v = 0.2
-        cmd_msg.omega = 2.0
+        cmd_msg.omega = -2.0
         self.cmd_vel_pub.publish(cmd_msg)
         rospy.sleep(1.0)
 
