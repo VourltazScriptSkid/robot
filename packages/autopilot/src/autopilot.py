@@ -3,7 +3,7 @@
 import rospy
 from duckietown_msgs.msg import Twist2DStamped
 from duckietown_msgs.msg import FSMState
-from std_msgs.msg import Float32
+from std_msgs.msg import Range
 
 class Autopilot:
     def __init__(self):
@@ -30,11 +30,11 @@ class Autopilot:
         if self.robot_state != "LANE_FOLLOWING":
             return
 
-        # Ignore ToF readings if cooldown is active
         if self.ignore_tof:
             return
 
-        self.move_robot(msg.data)
+        self.move_robot(msg.range)
+
  
     # Stop Robot before node has shut down. This ensures the robot keep moving with the latest velocity command
     def clean_shutdown(self):
