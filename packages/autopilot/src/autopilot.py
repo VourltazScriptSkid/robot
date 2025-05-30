@@ -12,75 +12,43 @@ class Autopilot:
         rospy.init_node('autopilot_node', anonymous=True)
 
         self.robot_state = "LANE_FOLLOWING"
-        self.tof_distance = None
-        self.blocked_start_time = None
-        self.waiting = False
-        self.overtaking = False
+        self.ignore_tof = False  # Flag to ignore tof detections temporarily
 
         # When shutdown signal is received, we run clean_shutdown function
         rospy.on_shutdown(self.clean_shutdown)
         
-        ###### Init Pub/Subs. REMEMBER TO REPLACE "stripe" WITH YOUR ROBOT'S NAME #####
+        ###### Init Pub/Subs. REMEMBER TO REPLACE "akandb" WITH YOUR ROBOT'S NAME #####
         self.cmd_vel_pub = rospy.Publisher('/stripe/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
         self.state_pub = rospy.Publisher('/stripe/fsm_node/mode', FSMState, queue_size=1)
-        rospy.Subscriber('/stripe/tof_driver_node/range', Float32, self.tof_callback, queue_size=1)
+        rospy.Subscriber('/stripe/tof_front_center', Float32, self.tof_callback, queue_size=1)
         ################################################################
-
-        # Start driving timer
-        rospy.Timer(rospy.Duration(0.1), self.drive_loop)
 
         rospy.spin() # Spin forever but listen to message callbacks
 
     # ToF Sensor Callback
     def tof_callback(self, msg):
-        self.tof_distance = msg.data
-
         if self.robot_state != "LANE_FOLLOWING":
             return
 
-        if self.tof_distance < 0.1:
-            if not self.waiting:
-                # First detection - stop and start waiting
-                rospy.loginfo("Obstacle detected. Stopping and waiting...")
-                self.set_state("NORMAL_JOYSTICK_CONTROL")
-                self.stop_robot()
-                self.blocked_start_time = rospy.Time.now()
-                self.waiting = True
-            else:
-                # Still blocked - check if 5 seconds passed
-                if (rospy.Time.now() - self.blocked_start_time).to_sec() >= 5.0:
-                    rospy.loginfo("Obstacle did not move. Initiating overtake.")
-                    self.overtake()
-        else:
-            if self.waiting:
-                rospy.loginfo("Obstacle cleared. Resuming lane following.")
-                self.set_state("LANE_FOLLOWING")
-                self.waiting = False
-                self.blocked_start_time = None
+        # Ignore ToF readings if cooldown is active
+        if self.ignore_tof:
+            return
 
-    # Drives forward if no obstacle is detected
-    def drive_loop(self, event):
-        if self.robot_state == "LANE_FOLLOWING" and not self.overtaking:
-            self.send_cmd(0.2, 0.0)  # Forward at slow speed
-
-    # Stop Robot before node has shut down. This ensures the robot doesn't keep moving
+        self.move_robot(msg.data)
+ 
+    # Stop Robot before node has shut down. This ensures the robot keep moving with the latest velocity command
     def clean_shutdown(self):
         rospy.loginfo("System shutting down. Stopping robot...")
         self.stop_robot()
 
     # Sends zero velocity to stop the robot
     def stop_robot(self):
-        self.send_cmd(0.0, 0.0)
-
-    # Helper to send a velocity command
-    def send_cmd(self, v, omega):
         cmd_msg = Twist2DStamped()
         cmd_msg.header.stamp = rospy.Time.now()
-        cmd_msg.v = v
-        cmd_msg.omega = omega
+        cmd_msg.v = 0.0
+        cmd_msg.omega = 0.0
         self.cmd_vel_pub.publish(cmd_msg)
 
-    # Set robot FSM state
     def set_state(self, state):
         self.robot_state = state
         state_msg = FSMState()
@@ -88,31 +56,74 @@ class Autopilot:
         state_msg.state = self.robot_state
         self.state_pub.publish(state_msg)
 
-    # Perform a simple overtaking maneuver
-    def overtake(self):
-        self.overtaking = True
+    def tof_cooldown_done(self, event):
+        rospy.loginfo("ToF cooldown complete, resuming obstacle detection.")
+        self.ignore_tof = False
 
-        # Step 1: Small left turn
-        self.send_cmd(0.1, 2.0)
-        rospy.sleep(1.0)
+    def move_robot(self, distance):
 
-        # Step 2: Drive forward past obstacle
-        self.send_cmd(0.3, 0.0)
-        rospy.sleep(1.5)
+        #### YOUR CODE GOES HERE ####
 
-        # Step 3: Small right turn to return to lane
-        self.send_cmd(0.1, -2.0)
-        rospy.sleep(1.0)
+        if distance > 0.3:  # No object nearby
+            return
 
-        # Step 4: Stop briefly and return to lane following
+        # Stop lane following temporarily
+        self.set_state("NORMAL_JOYSTICK_CONTROL")
+
+        # Stop the robot
         self.stop_robot()
+        rospy.loginfo("Obstacle detected. Waiting up to 5 seconds...")
+
+        # Wait up to 5 seconds to see if it moves
+        wait_time = rospy.Time.now()
+        timeout = rospy.Duration(5.0)
+
+        rate = rospy.Rate(10)
+        while rospy.Time.now() - wait_time < timeout:
+            distance_msg = rospy.wait_for_message('/stripe/tof_front_center', Float32, timeout=0.5)
+            if distance_msg.data > 0.3:
+                rospy.loginfo("Obstacle cleared. Resuming lane following.")
+                self.set_state("LANE_FOLLOWING")
+                return
+            rate.sleep()
+
+        # Overtake maneuver (open loop)
+        rospy.loginfo("Obstacle still there. Executing overtake maneuver.")
+
+        # Step 1: Curve right
+        cmd_msg = Twist2DStamped()
+        cmd_msg.header.stamp = rospy.Time.now()
+        cmd_msg.v = 0.2
+        cmd_msg.omega = -2.0
+        self.cmd_vel_pub.publish(cmd_msg)
+        rospy.sleep(1.0)
+
+        # Step 2: Go straight
+        cmd_msg.v = 0.3
+        cmd_msg.omega = 0.0
+        self.cmd_vel_pub.publish(cmd_msg)
+        rospy.sleep(1.2)
+
+        # Step 3: Curve left
+        cmd_msg.v = 0.2
+        cmd_msg.omega = 2.0
+        self.cmd_vel_pub.publish(cmd_msg)
+        rospy.sleep(1.0)
+
+        # Step 4: Straighten out
+        cmd_msg.v = 0.3
+        cmd_msg.omega = 0.0
+        self.cmd_vel_pub.publish(cmd_msg)
+        rospy.sleep(1.0)
+
+        # Resume lane following
         self.set_state("LANE_FOLLOWING")
 
-        # Reset flags
-        self.waiting = False
-        self.overtaking = False
-        self.blocked_start_time = None
-        rospy.loginfo("Overtake complete. Resumed lane following.")
+        # Ignore ToF detection briefly so we don't re-trigger instantly
+        self.ignore_tof = True
+        rospy.Timer(rospy.Duration(3.0), self.tof_cooldown_done, oneshot=True)
+
+        #############################
 
 if __name__ == '__main__':
     try:
