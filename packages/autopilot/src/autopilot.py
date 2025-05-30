@@ -3,12 +3,12 @@
 import rospy
 from duckietown_msgs.msg import Twist2DStamped
 from duckietown_msgs.msg import FSMState
-from std_msgs.msg import Range
+from sensor_msgs.msg import Range  # ✅ Correct import
 
 class Autopilot:
     def __init__(self):
         
-        #Initialize ROS node
+        # Initialize ROS node
         rospy.init_node('autopilot_node', anonymous=True)
 
         self.robot_state = "LANE_FOLLOWING"
@@ -20,10 +20,10 @@ class Autopilot:
         ###### Init Pub/Subs. REMEMBER TO REPLACE "akandb" WITH YOUR ROBOT'S NAME #####
         self.cmd_vel_pub = rospy.Publisher('/stripe/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
         self.state_pub = rospy.Publisher('/stripe/fsm_node/mode', FSMState, queue_size=1)
-        rospy.Subscriber('/stripe/tof_front_center', Float32, self.tof_callback, queue_size=1)
+        rospy.Subscriber('/stripe/front_center_tof_driver_node/range', Range, self.tof_callback, queue_size=1)
         ################################################################
 
-        rospy.spin() # Spin forever but listen to message callbacks
+        rospy.spin()  # Spin forever but listen to message callbacks
 
     # ToF Sensor Callback
     def tof_callback(self, msg):
@@ -35,8 +35,7 @@ class Autopilot:
 
         self.move_robot(msg.range)
 
- 
-    # Stop Robot before node has shut down. This ensures the robot keep moving with the latest velocity command
+    # Stop Robot before node has shut down. This ensures the robot doesn't keep moving with the latest velocity command
     def clean_shutdown(self):
         rospy.loginfo("System shutting down. Stopping robot...")
         self.stop_robot()
@@ -80,8 +79,8 @@ class Autopilot:
 
         rate = rospy.Rate(10)
         while rospy.Time.now() - wait_time < timeout:
-            distance_msg = rospy.wait_for_message('/stripe/tof_front_center', Float32, timeout=0.5)
-            if distance_msg.data > 0.3:
+            distance_msg = rospy.wait_for_message('/stripe/front_center_tof_driver_node/range', Range, timeout=0.5)
+            if distance_msg.range > 0.3:
                 rospy.loginfo("Obstacle cleared. Resuming lane following.")
                 self.set_state("LANE_FOLLOWING")
                 return
