@@ -35,6 +35,7 @@ class Autopilot:
             return
 
         self.latest_distance = msg.range
+        self.move_robot(msg.range)
 
     # Stop Robot before node has shut down. This ensures the robot doesn't keep moving with the latest velocity command
     def clean_shutdown(self):
@@ -64,7 +65,7 @@ class Autopilot:
 
         #### YOUR CODE GOES HERE ####
 
-        if distance > 0.3:  # No object nearby
+        if distance > 0.1:  # No object nearby
             return
 
         # Stop lane following temporarily
@@ -93,8 +94,8 @@ class Autopilot:
         # Step 1: Curve left
         cmd_msg = Twist2DStamped()
         cmd_msg.header.stamp = rospy.Time.now()
-        cmd_msg.v = 0.2
-        cmd_msg.omega = 2.0
+        cmd_msg.v = 0.4
+        cmd_msg.omega = 4.0
         self.cmd_vel_pub.publish(cmd_msg)
         rospy.sleep(1.0)
 
@@ -105,8 +106,8 @@ class Autopilot:
         rospy.sleep(1.2)
 
         # Step 3: Curve right
-        cmd_msg.v = 0.2
-        cmd_msg.omega = -2.0
+        cmd_msg.v = 0.4
+        cmd_msg.omega = -4.0
         self.cmd_vel_pub.publish(cmd_msg)
         rospy.sleep(1.0)
 
